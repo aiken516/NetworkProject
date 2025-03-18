@@ -2,6 +2,8 @@
 using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
@@ -12,7 +14,7 @@ namespace Client
 {
     class Program
     {
-        static void Main(string[] args)
+        /*static void Main(string[] args)
         {
             Socket serverSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
 
@@ -50,6 +52,58 @@ namespace Client
 
                 Console.WriteLine(recvJObject["message"]);
             }
+
+            serverSocket.Close();
+        }*/
+
+        static void Main(string[] args)
+        {
+            int bufferSize = 1024;
+            int currentSize = 0;
+
+            Socket serverSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+
+            IPEndPoint serverEndPotin = new IPEndPoint(IPAddress.Loopback, 4000);
+            serverSocket.Connect(serverEndPotin);
+
+            //사이즈 먼저 받아오기
+            byte[] buffer = new byte[sizeof(int)];
+
+            int recvLength = serverSocket.Receive(buffer);
+            int fileSize = BitConverter.ToInt32(buffer, 0);
+
+            //파일 담을 버퍼 생성
+            byte[] fileBuffer = new byte[fileSize];
+
+
+            bool isRunning = true;
+
+            while (isRunning)
+            {
+                buffer = new byte[bufferSize];
+
+                recvLength = serverSocket.Receive(buffer);
+                if (recvLength <= 0)
+                {
+                    isRunning = false;
+                }
+
+                int endLength = bufferSize;
+                if (fileSize < currentSize + bufferSize)
+                {
+                    endLength = fileSize % bufferSize;
+                    isRunning = false;
+                }
+
+                for (int i = 0; i < endLength; i++)
+                {
+                    fileBuffer[currentSize + i] = buffer[i];
+                }
+
+                currentSize += bufferSize;
+            }
+
+            File.WriteAllBytes("image.jpg", fileBuffer);
 
             serverSocket.Close();
         }
